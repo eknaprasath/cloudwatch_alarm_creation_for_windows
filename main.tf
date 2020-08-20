@@ -177,7 +177,7 @@ mainSteps:
       Parameters:
         commands:
           - '#!/bin/sh '
-          - 'df -TPh | grep -v "tmpfs" | awk ''BEGIN {printf"{\"discarray\":["}{if($1=="Filesystem")next;if(a)printf",";printf"{\"Filesystem\":\""$1"\",\"fstype\":\""$2"\",\"size\":\""$3"\",\"used\":\""$4"\",\"available\":\""$5"\",\"usedpercent\":\""$6"\",\"mount\":\""$7"\"}";a++;}END{print"]}";}'''
+          - 'df -TPh | grep -v "tmpfs" | grep -v "loop" | awk ''BEGIN {printf"{\"discarray\":["}{if($1=="Filesystem")next;if(a)printf",";printf"{\"Filesystem\":\""$1"\",\"fstype\":\""$2"\",\"size\":\""$3"\",\"used\":\""$4"\",\"available\":\""$5"\",\"usedpercent\":\""$6"\",\"mount\":\""$7"\"}";a++;}END{print"]}";}'''
     outputs:
       - Name: blockdevice
         Selector: $.Output
