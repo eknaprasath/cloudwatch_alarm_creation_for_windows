@@ -1,37 +1,30 @@
-resource "aws_ssm_parameter" "CW-Linux-Config" {
-  name  = "CW-Linux-Config"
+resource "aws_ssm_parameter" "CW-Windows-Config" {
+  name  = "CW-Windows-Config"
   type  = "String"
   value = <<EOF
 {
-	"agent": {
-		"metrics_collection_interval": 60,
-		"run_as_user": "cwagent"
-	},
 	"metrics": {
 		"append_dimensions": {
 			"AutoScalingGroupName": "$${aws:AutoScalingGroupName}",
-			"InstanceId": "$${aws:InstanceId}"
+			"ImageId": "$${aws:ImageId}",
+			"InstanceId": "$${aws:InstanceId}",
+			"InstanceType": "$${aws:InstanceType}"
 		},
 		"metrics_collected": {
-			"disk": {
+			"LogicalDisk": {
 				"measurement": [
-					"used_percent"
+					"% Free Space"
 				],
 				"metrics_collection_interval": 60,
 				"resources": [
 					"*"
 				]
 			},
-			"mem": {
+			"Memory": {
 				"measurement": [
-					"mem_used_percent"
+					"% Committed Bytes In Use"
 				],
 				"metrics_collection_interval": 60
-			},
-			"statsd": {
-				"metrics_aggregation_interval": 60,
-				"metrics_collection_interval": 10,
-				"service_address": ":8125"
 			}
 		}
 	}
@@ -40,8 +33,8 @@ resource "aws_ssm_parameter" "CW-Linux-Config" {
 }
 
 
-resource "aws_ssm_document" "cloudwatch_alarm_creation" {
-  name          = "cloudwatch_alarm_creation"
+resource "aws_ssm_document" "cloudwatch_alarm_creation_windows" {
+  name          = "cloudwatch_alarm_creation_windows"
   document_type = "Automation"
   document_format = "YAML"
 
@@ -119,7 +112,7 @@ parameters:
       from other locations except 'default'. The value is like ssm parameter
       store name for ssm config source.
     type: String
-    default: CW-Linux-Config
+    default: CW-Windows-Config
     allowedPattern: '[^"]*'
   optionalRestart:
     description: >-
@@ -171,13 +164,12 @@ mainSteps:
     action: 'aws:runCommand'
     onFailure: Abort
     inputs:
-      DocumentName: AWS-RunShellScript
+      DocumentName: AWS-RunPowerShellScript
       InstanceIds:
         - '{{ InstanceIds }}'
       Parameters:
         commands:
-          - '#!/bin/sh '
-          - 'df -TPh | grep -v "tmpfs" | grep -v "loop" | awk ''BEGIN {printf"{\"discarray\":["}{if($1=="Filesystem")next;if(a)printf",";printf"{\"Filesystem\":\""$1"\",\"fstype\":\""$2"\",\"size\":\""$3"\",\"used\":\""$4"\",\"available\":\""$5"\",\"usedpercent\":\""$6"\",\"mount\":\""$7"\"}";a++;}END{print"]}";}'''
+          - 'Get-WmiObject -Class Win32_logicaldisk| Select-Object -Property DeviceID | ConvertTo-Json'
     outputs:
       - Name: blockdevice
         Selector: $.Output
@@ -188,7 +180,7 @@ mainSteps:
     maxAttempts: 1
     onFailure: Abort
     inputs:
-      FunctionName: CW-Alarm-Creation
+      FunctionName: CW-Alarm-Creation-windows
       Payload: '{"instanceid":"{{InstanceIds}}","Blockdevice": {{listblockdevice.blockdevice}}}'
 DOC
 }
